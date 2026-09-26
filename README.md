@@ -1,6 +1,6 @@
 # MCX-N947 Macintosh emulator — source release candidate
 
-<img width="8064" height="6048" alt="MCX_pico" src="https://github.com/user-attachments/assets/759600d3-f7fd-421e-8a21-adabddac5b03" />
+<img width="8064" height="6048" alt="IMG_2929" src="https://github.com/user-attachments/assets/71b7ff2a-edba-4b6d-8174-db2bf59f3c77" />
 
 
 https://github.com/user-attachments/assets/aa9723b1-ea45-4c90-969d-0667d9c1c2b9
