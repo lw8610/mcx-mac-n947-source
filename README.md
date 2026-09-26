@@ -1,5 +1,9 @@
 # MCX-N947 Macintosh emulator — source release candidate
 
+
+
+
+
 This is a curated, **source-only** candidate for the FRDM-MCXN947. It runs a
 208 KiB Macintosh guest with Zephyr, uMac, Musashi, SmartDMA scanout, USB-host
 mouse input, and a FAT-hosted Macintosh disk image on external Flash. It is
