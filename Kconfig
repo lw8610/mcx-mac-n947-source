@@ -1,0 +1,389 @@
+mainmenu "mcx_mac"
+
+source "Kconfig.zephyr"
+
+config MCX_MAC_FLEXIO
+	bool
+	default y
+	select MCUX_FLEXIO
+	help
+	  Build the MCX-N FlexIO timing backend. The application attaches its
+	  timer resource to Zephyr's shared NXP FlexIO controller.
+
+config MCX_MAC_EDMA_LINKED
+	bool "Use experimental eDMA TCD line linking"
+	default n
+	depends on MCX_MAC_FLEXIO
+	help
+	  Use MCUXpresso eDMA TCDs linked at each 512-pixel line boundary.
+	  The linked diagnostic path is disabled by default until hardware
+	  measurements confirm its FlexIO request gating.
+
+config MCX_MAC_SOLID_VIDEO_DIAG
+	bool "Drive a solid VIDEO rectangle without DMA"
+	default n
+	depends on MCX_MAC_FLEXIO
+	help
+	  Diagnostic mode which bypasses eDMA and the pixel serializer. The
+	  HSYNC line interrupt drives a solid green rectangle directly, allowing
+	  the analog/sync path to be separated from packed framebuffer scanout.
+
+config MCX_MAC_HARDWARE_VIDEO_DIAG
+	bool "Generate a periodic VIDEO window entirely in FlexIO"
+	default n
+	depends on MCX_MAC_FLEXIO
+	help
+	  Diagnostic mode which bypasses eDMA, the pixel serializer, and the
+	  per-scanline CPU interrupt. A second FlexIO timer produces the VIDEO
+	  window from the same clock as HSYNC so line-to-line timing cannot jitter.
+
+config MCX_MAC_CONTINUOUS_RASTER
+	bool "Stream a complete VGA raster without per-line CPU starts"
+	default n
+	depends on MCX_MAC_FLEXIO
+	help
+	  Expand the monochrome framebuffer into a packed 800 by 525 raster and
+	  stream it continuously with one cyclic eDMA TCD. HSYNC and pixels share
+	  the FlexIO clock and no scanline interrupt participates in video timing.
+
+config MCX_MAC_SMARTDMA_DIRECT
+	bool "Experimental SmartDMA one-frame FlexIO scanout"
+	default n
+	depends on MCX_MAC_CONTINUOUS_RASTER
+	help
+	  Replace the two-frame eDMA raster with a single 800x525 frame streamed
+	  by a custom SmartDMA program. This is an experimental video path; leave
+	  disabled in the known-working public build until display verification.
+
+config MCX_MAC_SMARTDMA_RAW_PIXEL_ALIAS
+	bool "Experimental raw raster through FlexIO bit-byte-swap alias"
+	default n
+	depends on MCX_MAC_SMARTDMA_DIRECT
+	help
+	  Keep the existing full-frame SmartDMA source but store raw Macintosh
+	  pixel bytes in it. Direct SmartDMA writes to FlexIO SHIFTBUFBBS reverse
+	  each byte's bits in hardware. This isolates alias behavior before a
+	  direct guest-memory reader replaces the full-frame raster.
+
+config MCX_MAC_SMARTDMA_GUEST_DESCRIPTOR
+	bool "Experimental direct guest-framebuffer SmartDMA scanout"
+	default n
+	depends on MCX_MAC_SMARTDMA_DIRECT && MCX_MAC_SMARTDMA_RAW_PIXEL_ALIAS
+	depends on !MCX_MAC_VIDEO_RAM_BANK
+	help
+	  Store the VGA scan schedule in Flash and have SmartDMA fetch packed
+	  pixels directly from the Macintosh framebuffer. This removes the
+	  52,500-byte expanded raster but is still an experimental video path.
+
+config MCX_MAC_VIDEO_RAM_BANK
+	bool "Place the SmartDMA raster wholly in the final 64 KiB main-RAM bank"
+	default n
+	depends on MCX_MAC_SMARTDMA_DIRECT
+	help
+	  Requires boards/smartdma_video_bank.overlay. The overlay shrinks the
+	  normal application RAM to 256 KiB and reserves the final 64 KiB bank
+	  for the 52,500-byte raster so SmartDMA reads cannot cross a RAM bank.
+
+config MCX_MAC_FRAMEBUFFER_SRAMX
+	bool "Place the CPU-side Macintosh framebuffer in SRAMX"
+	default n
+	depends on MCX_MAC_CONTINUOUS_RASTER
+	help
+	  Experimental RAM-placement option. Move the 512x342 monochrome
+	  conversion framebuffer (21,888 bytes) from the nearly full main RAM
+	  into SRAMX. Continuous eDMA still reads its existing two-frame raster
+	  from main RAM; timing and transfer descriptors do not change.
+
+config MCX_MAC_ANIMATED_TEST
+	bool "Animate the checkerboard through vertical-blank commits"
+	default n
+	depends on MCX_MAC_CONTINUOUS_RASTER
+	help
+	  Shift the checkerboard by eight pixels twice per second. This verifies
+	  that framebuffer changes can be committed during vertical blank while
+	  the cyclic scanout DMA remains uninterrupted.
+
+config MCX_MAC_M68K_BUS_DIAG
+	bool "Run the 68000 memory-bus and CPU-callback self-test"
+	default y
+	help
+	  Verify the 24-bit address mask, big-endian accesses, reset ROM overlay,
+	  RAM writes below the overlay, unmapped-access diagnostics, and the
+	  Musashi-compatible memory callback adapter. No CPU core runs yet.
+
+config MCX_MAC_UMAC_CORE
+	bool "Compile the upstream uMac/Musashi 128K core"
+	default n
+	help
+	  Compile the upstream emulator from external/umac with generated
+	  Musashi opcode sources. This option alone does not run guest code;
+	  a user-provided, patched ROM and disc image are still required.
+
+config MCX_MAC_EXTERNAL_FLASH_PROBE
+	bool "Read-only probe of onboard FlexSPI NOR for future disk backend"
+	default n
+	depends on FLASH
+	help
+	  Check the onboard external NOR device, JEDEC ID, capacity, and whether
+	  its first and last erase sectors are blank. This option never erases or
+	  writes external Flash and does not change the guest disk backend.
+
+config MCX_MAC_EXTERNAL_FLASH_WRITE_TEST
+	bool "Test and restore one confirmed-blank external Flash sector"
+	default n
+	depends on MCX_MAC_EXTERNAL_FLASH_PROBE
+	help
+	  On a matching W25Q64 only, require the final 4 KiB sector to be all
+	  0xff, program a 256-byte pattern, verify it, erase the sector, and
+	  verify it is blank again. Never run on a nonblank sector. This is an
+	  opt-in development test; it does not enable persistent guest writes.
+
+config MCX_MAC_UMAC_FIXED_DISK_ROM
+	bool "Use the experimental two-drive private Macintosh ROM"
+	default n
+	help
+	  Require the private ROM variant with a second, fixed-disk Device
+	  Manager entry. This does not require or access external Flash by
+	  itself and is useful for isolating Macintosh boot behavior.
+
+config MCX_MAC_EXTERNAL_FLASH_HDD
+	bool "Build external Flash Macintosh fixed-disk backend (experimental)"
+	default n
+	depends on FLASH
+	select MCX_MAC_UMAC_FIXED_DISK_ROM
+	help
+	  Build the fixed-disk block backend in the onboard W25Q64. The first
+	  and last 64 KiB erase sectors are reserved, with one additional 4 KiB
+	  header, yielding a 16120-sector device as Mac drive 8. It never
+	  automatically initializes blank Flash. The
+	  Mac can then initialize it as a normal volume. Writes currently use
+	  non-atomic erase-block read/modify/write and are not power-loss safe.
+
+config MCX_MAC_EXTERNAL_FLASH_FAT_IMAGE
+	bool "Use an existing raw HFS/MFS image file on the external FAT volume"
+	default n
+	depends on FLASH && DISK_DRIVER_FLASH && FAT_FILESYSTEM_ELM
+	depends on !MCX_MAC_EXTERNAL_FLASH_HDD
+	select MCX_MAC_UMAC_FIXED_DISK_ROM
+	help
+	  Open /NAND:/umac0.img as Mac drive 8. HFS is writable; MFS is
+	  read-only pending fixed-disk compatibility testing. The volume and file
+	  must already exist; firmware does not format the volume or create/truncate
+	  the image.
+	  Do not expose the FAT volume to a USB host while the Mac is using it.
+
+config MCX_MAC_USB_IMAGE_TRANSFER
+	bool "Experimental SW2-selected USB image transfer mode"
+	default n
+	depends on MCX_MAC_EXTERNAL_FLASH_FAT_IMAGE && USB_DEVICE_STACK_NEXT
+	depends on USBD_MSC_CLASS && USB_HOST_STACK && GPIO
+	help
+	  Compile both USB1 roles. Holding user SW2 at startup starts the USB
+	  device/MSC mode instead of the Macintosh. This is a private build probe
+	  with a non-production VID/PID, not a release feature.
+
+config MCX_MAC_EXTERNAL_FLASH_HDD_FORMAT_BLANK
+	bool "Explicitly initialize a completely blank external Flash HDD area"
+	default n
+	depends on MCX_MAC_EXTERNAL_FLASH_HDD
+	help
+	  Development-only, one-time operation. Formatting scans the disk area and
+	  refuses to modify it if any byte is not erased. This does not create an
+	  HFS volume. Never enable in a normal release image.
+
+config MCX_MAC_EXTERNAL_FLASH_HDD_SKIP_MEDIA
+	bool "Keep fixed-disk ROM driver but do not access external media"
+	default n
+	depends on MCX_MAC_EXTERNAL_FLASH_HDD
+	depends on !MCX_MAC_EXTERNAL_FLASH_HDD_FORMAT_BLANK
+	help
+	  Diagnostic only: boot with the two-drive ROM patch but leave drive 8
+	  unattached. This isolates guest driver registration from external NOR
+	  reads and writes. The System floppy remains available.
+
+config MCX_MAC_UMAC_SMOKE
+	bool "Run a synthetic uMac/Musashi CPU smoke test"
+	default n
+	depends on MCX_MAC_UMAC_CORE
+	help
+	  Execute a short 68000 branch loop from a project-owned synthetic ROM.
+	  This is only a CPU/link test, not Macintosh boot or video output.
+
+config MCX_MAC_UMAC_BOOT
+	bool "Boot uMac with locally supplied ROM and disk"
+	default n
+	depends on MCX_MAC_UMAC_CORE && MCX_MAC_CONTINUOUS_RASTER
+	help
+	  Embed user-supplied ROM and disk images into a local firmware build.
+	  Neither image is copied into the source tree. Do not distribute the
+	  resulting firmware without appropriate rights to those images.
+
+config MCX_MAC_UMAC_PERF_DIAG
+	bool "Measure uMac loop and video-service CPU time"
+	default n
+	depends on MCX_MAC_UMAC_BOOT
+	help
+	  Record cycle counts for the guest loop, video copy, raster service and
+	  main-thread sleep. Print aggregate timing every five seconds. Keep this
+	  disabled in the normal build to avoid adding timing probes to hot paths.
+
+config MCX_MAC_UMAC_INSTR_COUNT
+	bool "Count executed guest 68000 instructions for a diagnostic build"
+	default n
+	depends on MCX_MAC_UMAC_BOOT
+	help
+	  Increment a counter for each 68000 instruction and report kIPS every
+	  five seconds. The hook adds overhead, so compare two builds made with
+	  this same option rather than treating its rate as an uninstrumented MIPS.
+
+config MCX_MAC_UMAC_RAM_KIB
+	int "Macintosh guest RAM in KiB"
+	default 128
+	range 128 208
+	depends on MCX_MAC_UMAC_CORE
+	help
+	  The 128 KiB normal build is unchanged. Larger values need the matching
+	  private ROM memory-top patch, and enough contiguous CPU0 RAM. The
+	  192 KiB variant moves the CPU-side framebuffer into SRAMX. The 208 KiB
+	  variant also moves unused USB reserve data and the system heap to SRAMX.
+	  Only 128, 192, and 208 KiB have matching private ROM patches.
+
+config MCX_MAC_UMAC_OPCODE_PROFILE
+	bool "Sample executed Musashi opcode handlers for a diagnostic build"
+	default n
+	depends on MCX_MAC_UMAC_BOOT && !MCX_MAC_UMAC_HOT_OPS_RAM && !MCX_MAC_UMAC_HOT_OPS_RAMX
+	help
+	  Sample the actual opcode-handler dispatch on CPU0, storing counts in
+	  spare RAMX. The generated Musashi source is instrumented only for this
+	  diagnostic build; the vendored submodule and release image are untouched.
+
+config MCX_MAC_UMAC_CYCLE_PROFILE
+	bool "Sample actual CPU cycles spent in Musashi opcode handlers"
+	default n
+	depends on MCX_MAC_UMAC_BOOT && !MCX_MAC_UMAC_HOT_OPS_RAM && !MCX_MAC_UMAC_HOT_OPS_RAMX && !MCX_MAC_UMAC_OPCODE_PROFILE
+	help
+	  Time one of approximately every 64 dispatched guest instructions and
+	  rank handlers by accumulated CPU cycles, not just execution frequency.
+	  This diagnostic has measurement overhead and may include interrupt time.
+	  The sample table occupies 16 KiB of main RAM; do not enable in release.
+
+config MCX_MAC_UMAC_MOVEM_MASK_ITER
+	bool "Experiment with set-bit iteration in two hot MOVEM handlers"
+	default n
+	depends on MCX_MAC_UMAC_BOOT && !MCX_MAC_UMAC_HOT_OPS_RAM && !MCX_MAC_UMAC_HOT_OPS_RAMX
+	help
+	  Rewrite only the generated copies of MOVEM.L register-to-memory
+	  predecrement and memory-to-register postincrement handlers. Iterate
+	  selected register bits instead of testing all 16 slots. This is an
+	  experimental A/B optimization; leave disabled in a release build.
+
+config MCX_MAC_UMAC_CPU_CONTEXT_RAMX
+	bool "Experiment with Musashi CPU register state in app SRAMX"
+	default n
+	depends on MCX_MAC_UMAC_BOOT && !MCX_MAC_UMAC_HOT_OPS_RAMX
+	help
+	  Relocate only the 536-byte Musashi CPU state to the existing app SRAMX
+	  data bank. The guest RAM, opcode dispatch table and firmware stay in
+	  their original locations. This is an experimental A/B option.
+
+config MCX_MAC_UMAC_HOT_OPS_RAM
+	bool "Experiment with uMac's hot 200 opcode handlers in RAM"
+	default n
+	depends on MCX_MAC_UMAC_BOOT && ARCH_HAS_RAMFUNC_SUPPORT
+	help
+	  Decorate uMac's profiled 200 opcode handlers and the Musashi dispatcher
+	  for Zephyr's startup-copied executable .ramfunc section. This first
+	  experiment uses ordinary CPU0 RAM, not RAMX, because the existing RAMX
+	  device-tree region is data-only under the MPU. Leave off in release
+	  builds until speed, free RAM and video stability are measured.
+
+config MCX_MAC_UMAC_HOT_OPS_RAMX
+	bool "Experiment with uMac's hot 200 opcode handlers in isolated RAMX"
+	default n
+	depends on MCX_MAC_UMAC_BOOT && CODE_DATA_RELOCATION && !MCX_MAC_UMAC_HOT_OPS_RAM
+	help
+	  Relocate the 200 profiled handlers and the Musashi dispatcher to a
+	  dedicated executable RAMX bank. The disk overlay remains in a separate
+	  32 KiB RAMX region. This is an experimental diagnostic build only.
+
+config MCX_MAC_USB_THREAD_PROFILE
+	bool "Measure USB host thread CPU time"
+	default n
+	depends on MCX_MAC_USB_MOUSE && THREAD_RUNTIME_STATS && THREAD_MONITOR && THREAD_NAME
+	help
+	  Print five-second runtime deltas for the Zephyr USB host, bus and
+	  controller threads. This is a diagnostic build option only: scheduler
+	  runtime accounting has overhead and does not isolate USB interrupt time.
+
+config MCX_MAC_UMAC_FAST_SCHED
+	bool "Experiment with 100 us guest scheduling intervals"
+	default n
+	depends on MCX_MAC_UMAC_BOOT
+	help
+	  Replace the main loop's unconditional 1 ms sleep with a one-tick
+	  (100 us at the present 10 kHz kernel tick) sleep while the guest runs.
+	  USB host threads remain preemptive. Compare timing, input and VGA
+	  stability before enabling this in the normal build.
+
+config MCX_MAC_UMAC_WORD_VIDEO
+	bool "Experiment with word-at-a-time framebuffer comparison"
+	default n
+	depends on MCX_MAC_UMAC_BOOT
+	help
+	  Compare and copy aligned framebuffer data as 32-bit words, falling back
+	  to the bytewise library routines for unaligned inputs. EXP-72 reduced
+	  video CPU time but made visible display artifacts worse, so leave this
+	  disabled while investigating memory-bus contention.
+
+config MCX_MAC_UMAC_VIDEO_DIRTY_TRACK
+	bool "Experiment with guest framebuffer write tracking"
+	default n
+	depends on MCX_MAC_UMAC_BOOT
+	help
+	  Mark the guest display dirty on uMac CPU and floppy writes to its RAM
+	  range. Skip the full 21,888-byte comparison on clean VSYNCs. This is
+	  experimental until live Finder, mouse and window redraws are checked.
+
+config MCX_MAC_UMAC_CPU_O2
+	bool "Experiment with -O2 for the Musashi 68000 core"
+	default n
+	depends on MCX_MAC_UMAC_BOOT
+	help
+	  Compile only the Musashi CPU dispatcher and generated opcode handlers
+	  with -O2 instead of Zephyr's default -Os. This tests whether guest CPU
+	  throughput can improve without changing raster memory traffic.
+
+config MCX_MAC_UMAC_YIELD_SCHED
+	bool "Experiment with zero fixed sleep while the guest runs"
+	default n
+	depends on MCX_MAC_UMAC_BOOT
+	help
+	  Yield the main thread instead of waiting for a kernel timer tick.
+	  This can improve guest throughput but may keep CPU0 fully busy.
+	  Verify USB latency and video stability before adopting it.
+
+config MCX_MAC_UMAC_MEDIA_FROM_SLOT1
+	bool "Read separately installed private media from image-1 flash slot"
+	default n
+	depends on MCX_MAC_UMAC_BOOT
+	help
+	  Read a checksummed ROM/disk package already installed in the board's
+	  image-1 partition. This does not write flash. The image-1 partition
+	  cannot simultaneously serve as an MCUboot update slot. The package
+	  must be created and installed separately by the device owner.
+
+config MCX_MAC_INDEPENDENT_FLOPPY
+	bool "Use project-owned Device Manager floppy implementation"
+	default n
+	depends on MCX_MAC_UMAC_CORE
+	help
+	  Experimental replacement for uMac's GPLv2-derived disc.c. Requires
+	  a separately patched ROM with the matching project-owned 68000 stub.
+
+config MCX_MAC_USB_MOUSE
+	bool "Connect a USB Boot mouse to uMac"
+	default n
+	depends on MCX_MAC_UMAC_BOOT && USB_HOST_STACK
+	help
+	  Experimental FRDM-MCXN947 J11 host input for the validated
+	  Logitech 046d:c52b receiver. USB keyboard input is not enabled.

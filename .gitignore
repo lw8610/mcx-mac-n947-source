@@ -1,0 +1,17 @@
+/build*/
+/.cache/
+__pycache__/
+*.pyc
+*.ROM
+*.rom
+*.dsk
+*.DSK
+*.img
+*.image
+*.bin
+*.hex
+*.elf
+*.uf2
+*.map
+*.log
+.DS_Store

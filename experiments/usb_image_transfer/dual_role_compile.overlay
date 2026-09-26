@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: MIT */
+/* Compile-only probe: present USB1 to both Zephyr host/device drivers.
+ * Both nodes describe the same controller and must NEVER be active at once.
+ * Runtime ownership switching is not yet implemented or tested.
+ */
+&peripheral {
+	zephyr_uhc0: usb-host@10b000 {
+		compatible = "nxp,uhc-ehci";
+		reg = <0x10b000 0x1000>;
+		interrupts = <67 0>;
+		interrupt-names = "usb_otg";
+		phy-handle = <&usbphy1>;
+		status = "okay";
+	};
+};

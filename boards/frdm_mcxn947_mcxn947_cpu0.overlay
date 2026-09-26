@@ -1,0 +1,73 @@
+/*
+ * Phase 2 VGA sync and packed monochrome VIDEO routing.
+ *
+ * The selections below are deliberately isolated in this overlay so a
+ * carrier board can move the signals without changing the driver:
+ *   PIO0_8 / FLEXIO0_D0 -> HSYNC
+ *   PIO0_9 / FLEXIO0_D1 -> VSYNC
+ *   PIO2_8 / FLEXIO0_D16 -> monochrome VIDEO (Phase 2, J8 pin 13)
+ *
+ * These mux choices exist in MCXN947VDF-pinctrl.h and are also used by the
+ * FRDM-MCXN947 FlexIO LCD pin group. Only D16 is used for video.
+ */
+
+#include <nxp/mcx/MCXN947VDF-pinctrl.h>
+
+/* 0x04000000 and 0x14000000 are aliases of the same RAMX bytes. SmartDMA
+ * firmware is installed at 0x04000000, so the app's SRAMX linker section
+ * must not begin at the default 0x14000000. Reserve the first 16 KiB for
+ * SmartDMA code and use the remaining 80 KiB for application data.
+ */
+&sramx {
+	/delete-property/ zephyr,memory-region;
+	status = "disabled";
+};
+
+&sram {
+	sramx_app: memory@4004000 {
+		compatible = "zephyr,memory-region", "mmio-sram";
+		reg = <0x04004000 0x00014000>;
+		zephyr,memory-region = "SRAMX";
+		zephyr,memory-attr = <DT_MEM_ARM(ATTR_MPU_RAM)>;
+	};
+};
+
+&pinctrl {
+	mcx_mac_vga_default: mcx_mac_vga_default {
+		sync_pins {
+			pinmux = <FLEXIO0_D0_PIO0_8>,
+				 <FLEXIO0_D1_PIO0_9>;
+			drive-strength = "high";
+			slew-rate = "fast";
+		};
+
+		video_pin {
+			pinmux = <FLEXIO0_D16_PIO2_8>;
+			/* A 25 MHz monochrome output on loose jumper wiring does not
+			 * need the fastest edge. Keep enough drive for the VGA divider
+			 * while reducing reflections and overshoot. */
+			drive-strength = "high";
+			slew-rate = "slow";
+		};
+	};
+};
+
+&flexio0 {
+	status = "okay";
+	/* Let the eDMA completion IRQ (priority 0) preempt the HSYNC handler's
+	 * short pixel-positioning delay instead of being held until the next line.
+	 */
+	interrupts = <105 1>;
+
+	/*
+	 * A disabled child gives the application a standard pinctrl-device node
+	 * without instantiating Zephyr's PWM driver or consuming a timer.
+	 */
+	mcx_mac_vga_pins: vga-pins {
+		compatible = "nxp,flexio-pwm";
+		status = "disabled";
+		#pwm-cells = <3>;
+		pinctrl-0 = <&mcx_mac_vga_default>;
+		pinctrl-names = "default";
+	};
+};

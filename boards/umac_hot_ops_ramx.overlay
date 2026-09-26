@@ -1,0 +1,20 @@
+/* SPDX-License-Identifier: MIT */
+/* SmartDMA firmware: 0x14000000..0x14003fff (16 KiB).
+ * Volatile disk overlay: 0x14004000..0x1400bfff (32 KiB).
+ * Executable hot 68000 code: 0x1400c000..0x14017fff (48 KiB).
+ */
+#include <zephyr/dt-bindings/memory-attr/memory-attr-arm.h>
+
+&sramx_app {
+	reg = <0x04004000 0x00008000>;
+};
+
+&sram {
+	ramx_hot: memory@400c000 {
+		compatible = "zephyr,memory-region", "mmio-sram";
+		reg = <0x0400c000 0x0000c000>;
+		zephyr,memory-region = "SRAMXHOT";
+		zephyr,memory-region-flags = "rx";
+		zephyr,memory-attr = <DT_MEM_ARM(ATTR_MPU_FLASH)>;
+	};
+};
