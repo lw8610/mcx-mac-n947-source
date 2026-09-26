@@ -3,6 +3,10 @@
 
 
 
+https://github.com/user-attachments/assets/aa9723b1-ea45-4c90-969d-0667d9c1c2b9
+
+
+
 
 This is a curated, **source-only** candidate for the FRDM-MCXN947. It runs a
 208 KiB Macintosh guest with Zephyr, uMac, Musashi, SmartDMA scanout, USB-host
