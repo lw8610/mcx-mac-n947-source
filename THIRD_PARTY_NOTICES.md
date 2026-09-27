@@ -11,6 +11,7 @@ relicense third-party code or Apple media.
 | FatFs | Linked from the Zephyr workspace, not vendored here | The linked `ff.c` is FatFs R0.16, Copyright 2025 ChaN, with its own source/binary redistribution notice in that file. Include its notice in any binary notice bundle. |
 | NXP HAL/USB code | Linked from the Zephyr workspace, not vendored here | Review the exact linked files' individual notices and include them in the build-specific binary notice bundle. |
 | NXP SmartDMA encoder subset | `src/video/smartdma_ezh_subset.h` | Adapted from NXP MCUX SDK under BSD-3-Clause; the full notice is retained in that header. |
+| Macintosh virtual key numbers | Numeric assignments in `src/emulator/umac_usb_hid_keys.h` | Physical key numbers follow Apple's publicly documented HIToolbox `Events.h` values, originally published in Inside Macintosh Volume V. No Apple SDK header is included or required by the embedded build. |
 | Apple ROM/System/disk images | **Not included** | Users supply and install their own copies. Do not publish private media packages or development firmware images containing them. |
 
 `src/emulator/umac_floppy.c` and `tools/patch_umac_rom_independent.py`

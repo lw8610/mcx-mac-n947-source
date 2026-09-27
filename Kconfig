@@ -381,9 +381,10 @@ config MCX_MAC_INDEPENDENT_FLOPPY
 	  a separately patched ROM with the matching project-owned 68000 stub.
 
 config MCX_MAC_USB_MOUSE
-	bool "Connect a USB Boot mouse to uMac"
+	bool "Connect generic USB Boot keyboard and mouse input to uMac"
 	default n
 	depends on MCX_MAC_UMAC_BOOT && USB_HOST_STACK
 	help
-	  Experimental FRDM-MCXN947 J11 host input for the validated
-	  Logitech 046d:c52b receiver. USB keyboard input is not enabled.
+	  Discover USB HID Boot keyboard and mouse interfaces on J11 without
+	  depending on a particular vendor, product, interface number, or endpoint.
+	  Composite wireless receivers exposing both Boot interfaces are supported.

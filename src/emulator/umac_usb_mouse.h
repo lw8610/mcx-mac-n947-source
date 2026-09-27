@@ -2,7 +2,7 @@
 #define MCX_MAC_UMAC_USB_MOUSE_H_
 
 int umac_usb_mouse_init(void);
-int umac_usb_mouse_bind_interface_one(void);
+int umac_usb_hid_bind_interfaces(void);
 void umac_usb_mouse_poll(void);
 void umac_usb_mouse_report(void);
 

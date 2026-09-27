@@ -154,7 +154,7 @@ int main(void)
 	       IS_ENABLED(CONFIG_MCX_MAC_UMAC_MEDIA_FROM_SLOT1) ?
 	       "separately installed media (image-1 slot)" :
 	       IS_ENABLED(CONFIG_MCX_MAC_USB_MOUSE) ?
-	       "private ROM + volatile writable System disk, linear vector mouse EXP-59" :
+	       "private ROM + writable System disk, generic USB HID keyboard/mouse" :
 	       IS_ENABLED(CONFIG_MCX_MAC_UMAC_BOOT) ?
 	       "private ROM + read-only System disk, UART RX diagnostic EXP-41" :
 	       "synthetic CPU EXP-34");
@@ -193,14 +193,14 @@ int main(void)
 #if defined(CONFIG_MCX_MAC_USB_MOUSE)
 	ret = umac_usb_mouse_init();
 	if (ret != 0) {
-		printk("DIAG USB mouse unavailable; continuing VGA/uMac\n");
+		printk("DIAG USB HID unavailable; continuing VGA/uMac\n");
 	} else {
 		/* Give enumeration an uncontended window before FlexIO/EDMA
 		 * scanout starts; this differentiates startup timing from VGA load. */
 		printk("DIAG USB pre-video enumeration window start\n");
 		k_sleep(K_SECONDS(3));
 		umac_usb_mouse_report();
-		(void)umac_usb_mouse_bind_interface_one();
+		(void)umac_usb_hid_bind_interfaces();
 		printk("DIAG USB pre-video enumeration window end\n");
 	}
 #endif

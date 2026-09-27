@@ -10,7 +10,9 @@ https://github.com/user-attachments/assets/aa9723b1-ea45-4c90-969d-0667d9c1c2b9
 
 This is a curated, **source-only** candidate for the FRDM-MCXN947. It runs a
 208 KiB Macintosh guest with Zephyr, uMac, Musashi, SmartDMA scanout, USB-host
-mouse input, and a FAT-hosted Macintosh disk image on external Flash. It is
+Boot keyboard/mouse input, and a FAT-hosted Macintosh disk image on external
+Flash. USB HID discovery does not depend on a receiver VID/PID, interface
+number, or endpoint number. It is
 not yet an approved binary release. See [RELEASE_STATUS.md](RELEASE_STATUS.md)
 before publishing or distributing anything.
 
@@ -46,6 +48,14 @@ The USB-device image-transfer mode used during development is excluded from
 the public build. Its test VID/PID is not suitable for a published binary.
 Macintosh disk image preparation and copying instructions will be documented
 separately when the transfer mode has a production VID/PID and release tests.
+
+## QuickDraw benchmark
+
+`experiments/mac_qd_benchmark` contains source for a small classic Macintosh
+application that measures rectangle drawing, screen/offscreen `CopyBits`, and
+moving/scaling rectangle animation. It shows the active test while running and
+an explicit idle results screen when complete. Build it separately with the
+Retro68 68K toolchain; no application binary or disk image is committed here.
 
 ## Licenses
 
