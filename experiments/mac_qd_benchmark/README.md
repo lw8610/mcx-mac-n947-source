@@ -18,6 +18,12 @@ The window shows the current test while the benchmark is running. After all
 tests complete, the results remain visible and the benchmark is idle. Press R
 to run it again. Press Command-Q or use the window close box to quit.
 
+Version 2 installs its own File/Quit menu, keeps servicing Macintosh events
+during long measurements, and subtracts that service time from the reported
+ticks. Its window starts below the menu bar and may be dragged normally. The
+screen title includes `MCX QD BENCH V2`, making an older copied application
+immediately distinguishable.
+
 The separation matters: only the complete offscreen-to-offscreen case is
 eligible in the current correctness-approved accelerator. Screen reads and
 writes intentionally fall back to Macintosh ROM QuickDraw.
