@@ -9,12 +9,29 @@ https://github.com/user-attachments/assets/aa9723b1-ea45-4c90-969d-0667d9c1c2b9
 
 
 This is a curated, **source-only** candidate for the FRDM-MCXN947. It runs a
-208 KiB Macintosh guest with Zephyr, uMac, Musashi, SmartDMA scanout, USB-host
+208 KiB Macintosh guest with Zephyr, uMac, Musashi, 512 x 342 1-bit monochrome
+SmartDMA scanout, USB-host
 Boot keyboard/mouse input, and a FAT-hosted Macintosh disk image on external
 Flash. USB HID discovery does not depend on a receiver VID/PID, interface
 number, or endpoint number. It is
 not yet an approved binary release. See [RELEASE_STATUS.md](RELEASE_STATUS.md)
 before publishing or distributing anything.
+
+## Version and display format
+
+- Firmware status: Phase 3 uMac source candidate; no independent semantic
+  firmware version has been assigned yet.
+- Zephyr: 4.4.2.
+- Musashi 68000 core: 4.60, as identified by the compiled `m68kcpu.c` source
+  header. This is the CPU-core version, not the firmware version. An older
+  upstream text file elsewhere in the development tree still says 4.10 and
+  is not used as the version authority here.
+- Display: 512 x 342, 1-bit logical monochrome. Black and white are the
+  implemented pixel values; the output is not a green-only framebuffer.
+
+Earlier development notes that mention a green image describe a prototype
+whose single digital video signal was physically connected only to the green
+input of a VGA display. They do not describe the current framebuffer format.
 
 The repository contains **no Apple ROM, System disk, application disk image,
 patched ROM, or prebuilt firmware**. Users must provide their own lawfully

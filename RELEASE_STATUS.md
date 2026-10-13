@@ -1,4 +1,4 @@
-# Publication checklist — 2026-09-27
+# Publication checklist — updated 2026-10-13
 
 **Status: the project owner approved source-only publication with the
 documented provenance uncertainty on 2026-09-27. Binary distribution is not
@@ -6,6 +6,14 @@ approved.** This folder is the curated candidate; the existing private GitHub
 repository and the first hardware board are not publication sources.
 
 ## Completed
+
+- The source description now records the implemented 512 x 342 1-bit
+  monochrome display format. Historical green-screen wording referred to the
+  physical VGA prototype connection, not a green-only framebuffer.
+- Version identity is recorded without inventing a firmware release number:
+  Zephyr 4.4.2, compiled Musashi source 4.60, and the Phase 3 uMac application
+  banner. A stale upstream text-file reference to Musashi 4.10 is not treated
+  as the compiled core's version.
 
 - Selected source files were copied into an independent build tree. Known
   GPLv2-derived uMac floppy, ROM-driver, and keymap files, plus private
