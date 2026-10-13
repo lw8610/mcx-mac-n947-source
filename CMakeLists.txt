@@ -209,6 +209,7 @@ if(CONFIG_MCX_MAC_UMAC_CORE)
     ${UMAC_DIR}/src/main.c
     ${UMAC_DIR}/src/via.c
     ${UMAC_DIR}/src/scc.c
+    ${UMAC_DIR}/src/rtc.c
     ${UMAC_M68KCPU_SOURCE}
     ${MUSASHI_DIR}/m68kdasm.c
     ${UMAC_GEN_DIR}/m68kops.c

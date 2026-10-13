@@ -76,16 +76,13 @@ struct umac_audio_hardware_state {
 };
 void    umac_audio_get_hardware_state(struct umac_audio_hardware_state *out);
 unsigned int umac_get_sound_buffer_offset(void);
+void    umac_rtc_set_seconds(uint32_t seconds_1904);
+uint32_t umac_rtc_get_seconds(void);
+void    umac_rtc_get_pram(uint8_t output[256]);
 
-static inline void      umac_vsync_event(void)
-{
-        via_caX_event(2);
-}
+void    umac_vsync_event(void);
 
-static inline void      umac_1hz_event(void)
-{
-        via_caX_event(1);
-}
+void    umac_1hz_event(void);
 
 /* Return the offset into RAM of the current display buffer */
 static inline unsigned int      umac_get_fb_offset(void)

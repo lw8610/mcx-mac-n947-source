@@ -53,6 +53,8 @@
 #define VIA_ACR         11
 #define VIA_PCR         12
 #define VIA_IFR         13
+#define  VIA_IRQ_T1     0x40
+#define  VIA_IRQ_T2     0x20
 #define  VIA_IRQ_CA     0x01
 #define  VIA_IRQ_CB     0x02
 #define  VIA_IRQ_SR     0x04
@@ -83,12 +85,21 @@ static struct via_cb via_callbacks;
 static int irq_status = 0;
 static uint8_t irq_active = 0;
 static uint8_t irq_enable = 0;
+static uint16_t timer1_counter, timer1_latch, timer2_counter, timer2_latch;
+static uint8_t timer1_armed, timer2_armed, timer_have_time;
+static uint64_t timer_last_us;
+static uint32_t timer_fraction;
+#define VIA_CLOCK_HZ 783360U
 
 void    via_init(struct via_cb *cb)
 {
         for (int i = 0; i < 16; i++)
                 via_regs[i] = 0;
         via_regs[VIA_RA] = 0x10; // Overlay, FIXME
+        irq_status = irq_active = irq_enable = 0;
+        timer1_counter = timer1_latch = timer2_counter = timer2_latch = 0xffffU;
+        timer1_armed = timer2_armed = timer_have_time = 0U;
+        timer_last_us = timer_fraction = 0U;
         if (cb)
                 via_callbacks = *cb;
 }
@@ -99,10 +110,10 @@ static void via_update_rega(uint8_t data)
                 via_callbacks.ra_change(data);
 }
 
-static void via_update_regb(uint8_t data)
+static void via_update_regb(uint8_t data, uint8_t ddr)
 {
         if ((via_regs[VIA_RB] ^ data) && via_callbacks.rb_change)
-                via_callbacks.rb_change(data);
+                via_callbacks.rb_change(data, ddr);
 }
 
 static int sr_tx_pending = -1;
@@ -197,12 +208,37 @@ void    via_write(unsigned int address, uint8_t data)
                 r = VIA_RA;
                 break;
         case VIA_RB:
-                via_update_regb(data);
+                via_update_regb(data, via_regs[VIA_DDRB]);
                 break;
         case VIA_DDRA:
                 break; // FIXME
         case VIA_DDRB:
+                if (via_callbacks.rb_change)
+                        via_callbacks.rb_change(via_regs[VIA_RB], data);
                 break; // FIXME
+        case VIA_T1CL:
+                timer1_latch = (timer1_latch & 0xff00U) | data;
+                break;
+        case VIA_T1CH:
+                timer1_latch = (timer1_latch & 0x00ffU) | ((uint16_t)data << 8);
+                timer1_counter = timer1_latch; timer1_armed = 1U;
+                irq_active &= ~VIA_IRQ_T1;
+                break;
+        case VIA_T1LL:
+                timer1_latch = (timer1_latch & 0xff00U) | data;
+                break;
+        case VIA_T1LH:
+                timer1_latch = (timer1_latch & 0x00ffU) | ((uint16_t)data << 8);
+                irq_active &= ~VIA_IRQ_T1;
+                break;
+        case VIA_T2CL:
+                timer2_latch = (timer2_latch & 0xff00U) | data;
+                break;
+        case VIA_T2CH:
+                timer2_latch = (timer2_latch & 0x00ffU) | ((uint16_t)data << 8);
+                timer2_counter = timer2_latch; timer2_armed = 1U;
+                irq_active &= ~VIA_IRQ_T2;
+                break;
         case VIA_SR:
                 via_update_sr(data);
                 dowrite = 0;
@@ -278,6 +314,19 @@ uint8_t via_read(unsigned int address)
 			sr_event_reads++;
                 break;
 
+        case VIA_T1CL:
+                data = (uint8_t)timer1_counter; irq_active &= ~VIA_IRQ_T1; break;
+        case VIA_T1CH:
+                data = (uint8_t)(timer1_counter >> 8); break;
+        case VIA_T1LL:
+                data = (uint8_t)timer1_latch; break;
+        case VIA_T1LH:
+                data = (uint8_t)(timer1_latch >> 8); break;
+        case VIA_T2CL:
+                data = (uint8_t)timer2_counter; irq_active &= ~VIA_IRQ_T2; break;
+        case VIA_T2CH:
+                data = (uint8_t)(timer2_counter >> 8); break;
+
         case VIA_IER:
                 data = 0x80 | irq_enable;
                 break;
@@ -296,8 +345,34 @@ uint8_t via_read(unsigned int address)
 /* Time param in us */
 void    via_tick(uint64_t time)
 {
-        (void)time;
-        // FIXME: support actual timers.....!
+	uint64_t scaled, ticks;
+	if (!timer_have_time) { timer_last_us = time; timer_have_time = 1U; return; }
+	scaled = (time - timer_last_us) * VIA_CLOCK_HZ + timer_fraction;
+	ticks = scaled / 1000000U; timer_fraction = (uint32_t)(scaled % 1000000U);
+	timer_last_us = time;
+	if (ticks == 0U) return;
+	if (timer1_armed && ticks > timer1_counter) {
+		irq_active |= VIA_IRQ_T1;
+		if (via_regs[VIA_ACR] & 0x40U) {
+			uint64_t period = (uint64_t)timer1_latch + 1U;
+			uint64_t after = ticks - ((uint64_t)timer1_counter + 1U);
+			timer1_counter = (uint16_t)(timer1_latch - (after % period));
+		} else { timer1_counter = (uint16_t)(timer1_counter - ticks); timer1_armed = 0U; }
+	} else timer1_counter = (uint16_t)(timer1_counter - ticks);
+	if ((via_regs[VIA_ACR] & 0x20U) == 0U) {
+		if (timer2_armed && ticks > timer2_counter) { irq_active |= VIA_IRQ_T2; timer2_armed = 0U; }
+		timer2_counter = (uint16_t)(timer2_counter - ticks);
+	}
+	via_assess_irq();
+}
+
+void via_pb6_pulse(void) { via_pb6_pulses(1U); }
+void via_pb6_pulses(unsigned int count)
+{
+	if ((via_regs[VIA_ACR] & 0x20U) == 0U || count == 0U) return;
+	if (timer2_armed && count > timer2_counter) { irq_active |= VIA_IRQ_T2; timer2_armed = 0U; }
+	timer2_counter = (uint16_t)(timer2_counter - count);
+	via_assess_irq();
 }
 
 /* External world pipes CA1/CA2 events (passage of time) in here:

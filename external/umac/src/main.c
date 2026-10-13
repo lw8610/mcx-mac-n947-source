@@ -47,6 +47,7 @@
 #include "scc.h"
 #include "rom.h"
 #include "disc.h"
+#include "rtc.h"
 #ifdef CONFIG_MCX_MAC_UMAC_VIDEO_DIRTY_TRACK
 #include "emulator/umac_video.h"
 #endif
@@ -191,7 +192,7 @@ static void     via_ra_changed(uint8_t val)
         oldval = val;
 }
 
-static void     via_rb_changed(uint8_t val)
+static void     via_rb_changed(uint8_t val, uint8_t ddr)
 {
         // 7 = sndres (sound enable/disable)
         // 6 = hblank
@@ -200,6 +201,7 @@ static void     via_rb_changed(uint8_t val)
         // 3 = mouse7 (in, 0 = button pressed)
         // [2:0] = RTC controls
         sound_enabled = !(val & 0x80);
+        rtc_lines_changed(val, ddr);
 }
 
 void    umac_audio_get_hardware_state(struct umac_audio_hardware_state *out)
@@ -233,6 +235,7 @@ static uint8_t  via_rb_in(void)
         // Mouse not pressed!
         if (!via_mouse_pressed)
                 v |= (1 << 3);
+        v |= rtc_data_read();
         return v;
 }
 
@@ -667,6 +670,7 @@ int     umac_init(void *ram_base, void *rom_base, disc_descr_t discs[DISC_NUM_DR
         sound_volume = 0;
         sound_enabled = 0;
         sound_main_buffer = 0;
+        rtc_init(0U, NULL, 0U);
         _ram_base = ram_base;
         _rom_base = rom_base;
 
@@ -827,7 +831,29 @@ void    umac_reset(void)
         sound_volume = 0;
         sound_enabled = 0;
         sound_main_buffer = 0;
+        rtc_reset_serial();
         m68k_pulse_reset();
+}
+
+void umac_1hz_event(void)
+{
+        rtc_advance_seconds(1U);
+        via_caX_event(1);
+}
+
+void umac_rtc_set_seconds(uint32_t seconds_1904)
+{
+        rtc_advance_seconds(seconds_1904 - rtc_get_seconds());
+}
+
+uint32_t umac_rtc_get_seconds(void) { return rtc_get_seconds(); }
+
+void umac_rtc_get_pram(uint8_t output[256]) { rtc_get_pram(output); }
+
+void umac_vsync_event(void)
+{
+        via_pb6_pulses(370U);
+        via_caX_event(2);
 }
 
 /* Called by the disc code when an eject op happens. */

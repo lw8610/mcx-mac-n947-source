@@ -30,7 +30,7 @@
 /* Callbacks for various VIA events: */
 struct via_cb {
         void (*ra_change)(uint8_t val);
-        void (*rb_change)(uint8_t val);
+        void (*rb_change)(uint8_t val, uint8_t ddr);
         uint8_t (*ra_in)(void);
         uint8_t (*rb_in)(void);
         void (*sr_tx)(uint8_t val);
@@ -41,6 +41,8 @@ void    via_init(struct via_cb *cb);
 void    via_write(unsigned int address, uint8_t data);
 uint8_t via_read(unsigned int address);
 void    via_tick(uint64_t time);
+void    via_pb6_pulse(void);
+void    via_pb6_pulses(unsigned int count);
 /* Trigger an event on CA1 or CA2: */
 void    via_caX_event(int ca);
 /* Return 1 only when the VIA shift register accepted the byte. */
