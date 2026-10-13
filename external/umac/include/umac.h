@@ -65,6 +65,18 @@ struct umac_kbd_diagnostics {
 };
 void    umac_kbd_get_diagnostics(struct umac_kbd_diagnostics *out);
 
+#define UMAC_AUDIO_FRAME_SAMPLES 370U
+#define UMAC_AUDIO_MAIN_BUFFER_FROM_TOP 0x300U
+#define UMAC_AUDIO_ALT_BUFFER_FROM_TOP 0x5f00U
+
+struct umac_audio_hardware_state {
+        uint8_t volume;
+        uint8_t enabled;
+        uint8_t main_buffer;
+};
+void    umac_audio_get_hardware_state(struct umac_audio_hardware_state *out);
+unsigned int umac_get_sound_buffer_offset(void);
+
 static inline void      umac_vsync_event(void)
 {
         via_caX_event(2);

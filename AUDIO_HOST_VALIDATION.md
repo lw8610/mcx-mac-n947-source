@@ -14,6 +14,10 @@ module is purchased.
 - Streaming state that preserves FIR history and fractional phase across
   arbitrary input block boundaries.
 - A finite-stream finish operation for deterministic WAV length.
+- Guest sound-buffer extraction from the 370-word layout, including VIA page,
+  enable, and 3-bit volume state. Disabled sound becomes midpoint silence.
+- Volume uses a deterministic linear host reference and is not presented as
+  the original analogue attenuation curve.
 
 The FIR coefficients are shared reference data for the later CPU CMSIS-DSP
 and MCX-N947 PowerQuad backends. The scalar implementation is the correctness
@@ -31,6 +35,13 @@ cc -std=c11 -Wall -Wextra -Werror -Isrc \
 The test covers unsigned-to-signed conversion, silence, exact output sample
 counts for both rates, and byte-for-byte equality when the same source is fed
 as one block, 37/113-sample blocks, or one sample at a time.
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -Isrc \
+  tests/umac_audio_source_test.c src/audio/umac_audio_source.c \
+  -o /tmp/umac_audio_source_test
+/tmp/umac_audio_source_test
+```
 
 ## Generate listening files
 

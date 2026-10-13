@@ -83,6 +83,9 @@ static int sim_done = 0;
 static jmp_buf main_loop_jb;
 
 static int disassemble = 0;
+static uint8_t sound_volume;
+static uint8_t sound_enabled;
+static uint8_t sound_main_buffer;
 
 #ifdef MCX_MAC_GUEST_LOOP_MS
 #define UMAC_EXECLOOP_QUANTUM   (MCX_MAC_GUEST_LOOP_MS * 1000)
@@ -178,6 +181,8 @@ static void     via_ra_changed(uint8_t val)
         // 3 = snd.pg2 (sound buffer select)
         // [2:0] = sound volume
         overlay = !!(val & 0x10);
+        sound_main_buffer = !!(val & 0x08);
+        sound_volume = val & 0x07;
         if ((oldval ^ val) & 0x10) {
                 MDBG("OVERLAY CHANGING\n");
                 update_overlay_layout();
@@ -194,7 +199,23 @@ static void     via_rb_changed(uint8_t val)
         // 4 = mouse4 (in, mouse X2)
         // 3 = mouse7 (in, 0 = button pressed)
         // [2:0] = RTC controls
-        (void)val;
+        sound_enabled = !(val & 0x80);
+}
+
+void    umac_audio_get_hardware_state(struct umac_audio_hardware_state *out)
+{
+        if (out == NULL)
+                return;
+        out->volume = sound_volume;
+        out->enabled = sound_enabled;
+        out->main_buffer = sound_main_buffer;
+}
+
+unsigned int umac_get_sound_buffer_offset(void)
+{
+        return RAM_SIZE - (sound_main_buffer ?
+                           UMAC_AUDIO_MAIN_BUFFER_FROM_TOP :
+                           UMAC_AUDIO_ALT_BUFFER_FROM_TOP);
 }
 
 static uint8_t  via_ra_in(void)
@@ -643,6 +664,9 @@ void    cpu_instr_callback(int pc)
 
 int     umac_init(void *ram_base, void *rom_base, disc_descr_t discs[DISC_NUM_DRIVES])
 {
+        sound_volume = 0;
+        sound_enabled = 0;
+        sound_main_buffer = 0;
         _ram_base = ram_base;
         _rom_base = rom_base;
 
@@ -800,6 +824,9 @@ static void     mouse_tick(void)
 void    umac_reset(void)
 {
         overlay = 1;
+        sound_volume = 0;
+        sound_enabled = 0;
+        sound_main_buffer = 0;
         m68k_pulse_reset();
 }
 
