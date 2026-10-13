@@ -33,6 +33,19 @@ Earlier development notes that mention a green image describe a prototype
 whose single digital video signal was physically connected only to the green
 input of a VGA display. They do not describe the current framebuffer format.
 
+## Audio development status
+
+The first hardware-independent audio stage is included. It converts the
+Macintosh 22,254.545... Hz unsigned 8-bit mono format to signed 16-bit mono at
+48 kHz or 44.1 kHz, with a streaming Q15 FIR reference and exact rational
+sample-rate tracking. Host tests verify silence, output length, and identical
+results across different input block sizes. A host WAV generator produces
+two-second listening files without requiring an I2S module.
+
+This is a correctness baseline, not an audio-output or performance claim.
+I2S, CMSIS-DSP acceleration, and MCX-N947 PowerQuad acceleration are not yet
+enabled in the firmware. See [AUDIO_HOST_VALIDATION.md](AUDIO_HOST_VALIDATION.md).
+
 The repository contains **no Apple ROM, System disk, application disk image,
 patched ROM, or prebuilt firmware**. Users must provide their own lawfully
 obtained Mac Plus v3 ROM and compatible System disk, build a private media
